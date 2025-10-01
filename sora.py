@@ -10,12 +10,15 @@ import sys
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+# --- ANSI Color Codes for Terminal Output ---
+GREEN = '\033[92m'
+RESET = '\033[0m'
+
 
 def load_all_configs() -> dict:
     """Load all configurations from config.txt and params.txt"""
     all_configs = {}
     
-    # Load browser configs
     config_files = {'config.txt': {}, 'params.txt': {}}
     for file_name, config_dict in config_files.items():
         if not os.path.exists(file_name):
@@ -31,14 +34,13 @@ def load_all_configs() -> dict:
                         continue
                     if '=' in line:
                         key, value = line.split('=', 1)
-                        # Try to parse as int or float, otherwise keep as string
                         try:
                             value = int(value)
                         except ValueError:
                             try:
                                 value = float(value)
                             except ValueError:
-                                pass # Keep as string
+                                pass
                         config_dict[key.strip()] = value
             all_configs.update(config_dict)
         except Exception as e:
@@ -49,7 +51,7 @@ def load_all_configs() -> dict:
 
 def generate_invite_code() -> str:
     """Generate 6-character invite code: starts with 0, then letter, then alternating digits/letters"""
-    chars = ['0']  # First position fixed as 0
+    chars = ['0']
     chars.append(random.choice(string.ascii_uppercase))
     for i in range(4):
         if i % 2 == 0:
@@ -64,7 +66,8 @@ def sanitize_auth_token(token: str) -> str:
     if not token:
         return token
     original_token = token
-    replacements = {'…': '...', '"': '"', '"': '"', ''': "'", ''': "'", '–': '-', '—': '--',}
+    # Fixed: removed duplicate keys
+    replacements = {'…': '...', '"': '"', "'": "'", '–': '-', '—': '--'}
     for unicode_char, ascii_replacement in replacements.items():
         if unicode_char in token:
             token = token.replace(unicode_char, ascii_replacement)
@@ -170,6 +173,12 @@ def safe_print(text: str):
         print(f"Printing error: {e}")
 
 
+def color_print(text: str, color: str = ""):
+    """Prints text in a specified color, then resets, using safe_print for encoding safety."""
+    colored_text = f"{color}{text}{RESET}"
+    safe_print(colored_text)
+
+
 class UTF8HTTPAdapter(HTTPAdapter):
     """Custom HTTP adapter that forces UTF-8 encoding for responses"""
     def send(self, request, **kwargs):
@@ -193,21 +202,19 @@ def submit_invite_code(invite_code: str, auth_token: str, config: dict, max_retr
     json_payload_bytes = json.dumps(data).encode('utf-8')
 
     for attempt in range(max_retries):
-        # --- DEBUGGING LINE 1 ---
         safe_print(f"[DEBUG] Attempting to submit code {invite_code} (attempt {attempt + 1}/{max_retries})")
         try:
             session = requests.Session()
             session.mount('https://', UTF8HTTPAdapter())
-            response = session.post(url, headers=headers, data=json_payload_bytes, timeout=None)
+            # FIXED: Added 30 second timeout instead of None
+            response = session.post(url, headers=headers, data=json_payload_bytes, timeout=30)
             
-            # --- DEBUGGING LINE 2 ---
             safe_print(f"[DEBUG] Server responded with status code: {response.status_code}")
-            # --- DEBUGGING LINE 3 (for unexpected errors) ---
             if response.status_code not in [200, 401, 403, 429]:
                  safe_print(f"[DEBUG] Unexpected response text: {response.text[:200]}")
 
             if response.status_code == 200:
-                safe_print(f"[SUCCESS] Code {invite_code} submitted successfully!")
+                color_print(f"[SUCCESS] Code {invite_code} submitted successfully!", GREEN)
                 return ("success", True, invite_code)
             elif response.status_code == 401:
                 safe_print(f"[AUTH_ERROR] Code {invite_code} failed: Authentication token is invalid or expired (401).")
@@ -226,7 +233,8 @@ def submit_invite_code(invite_code: str, auth_token: str, config: dict, max_retr
             else:
                 safe_print(f"[ERROR] Code {invite_code} returned status code: {response.status_code}")
                 if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
+                    # IMPROVED: Use exponential backoff for all errors
+                    time.sleep(retry_delay * (attempt + 1))
                     continue
                 else:
                     safe_print(f"[ERROR] Code {invite_code} still failed after {max_retries} retries, giving up")
@@ -234,7 +242,8 @@ def submit_invite_code(invite_code: str, auth_token: str, config: dict, max_retr
         except requests.exceptions.RequestException as e:
             safe_print(f"[REQUEST_ERROR] Code {invite_code} request error, retrying...: {e}")
             if attempt < max_retries - 1:
-                time.sleep(retry_delay)
+                # IMPROVED: Use exponential backoff
+                time.sleep(retry_delay * (attempt + 1))
                 continue
             else:
                 safe_print(f"[REQUEST_ERROR] Code {invite_code} still failed after {max_retries} retries, giving up")
@@ -244,12 +253,22 @@ def submit_invite_code(invite_code: str, auth_token: str, config: dict, max_retr
             error_details = str(e)
             safe_print(f"[UNEXPECTED_ERROR] Code {invite_code} - {error_type}: {error_details}")
             if attempt < max_retries - 1:
-                time.sleep(retry_delay)
+                # IMPROVED: Use exponential backoff
+                time.sleep(retry_delay * (attempt + 1))
                 continue
             else:
                 safe_print(f"[UNEXPECTED_ERROR] Code {invite_code} still failed after {max_retries} retries, giving up")
                 return ("unexpected_error_max", False, invite_code)
     return ("max_retries_exceeded", False, invite_code)
+
+
+def generate_unique_code(used_codes: set, invalid_codes: set, lock: threading.Lock) -> str:
+    """Generate a unique code that hasn't been used or marked invalid"""
+    while True:
+        code = generate_invite_code()
+        with lock:
+            if code not in used_codes and code not in invalid_codes:
+                return code
 
 
 def worker(invite_code: str, auth_token: str, config: dict, used_codes: set, lock: threading.Lock, max_retries: int, retry_delay: float) -> tuple[str, bool, str]:
@@ -266,9 +285,12 @@ def worker(invite_code: str, auth_token: str, config: dict, used_codes: set, loc
                 save_used_code(invite_code)
                 save_success_code(invite_code)
         else:
-            with lock:
-                used_codes.discard(invite_code)
-                if result == "invalid_code":
+            # Only remove from used_codes if not invalid (invalid codes stay to prevent regeneration)
+            if result != "invalid_code":
+                with lock:
+                    used_codes.discard(invite_code)
+            else:
+                with lock:
                     save_invalid_code(invite_code)
         
         return (result, success, invite_code)
@@ -281,12 +303,13 @@ def worker(invite_code: str, auth_token: str, config: dict, used_codes: set, loc
             safe_print(error_msg)
         except Exception as print_error:
             print(f"Worker thread error for code {invite_code} - Type: {error_type}. Could not print details.")
+        with lock:
+            used_codes.discard(invite_code)
         return ("worker_error", False, invite_code)
 
 
 def submit_invite_codes(config: dict) -> None:
     """Main function: infinitely generate and submit invite codes"""
-    # Get parameters from config, with defaults
     max_workers = config.get('max_workers', 3)
     delay = config.get('delay', 3.0)
     max_retries = config.get('max_retries', 20)
@@ -316,70 +339,69 @@ def submit_invite_codes(config: dict) -> None:
     
     start_time = time.time()
     last_success_count = 0
-    results = {"success": 0, "failed": 0, "duplicate": 0, "invalid_code": 0, "rate_limited": 0, "error": 0, "request_error": 0, "rate_limited_max": 0, "error_max": 0, "request_error_max": 0, "worker_error": 0, "unexpected_error_max": 0, "encoding_error_max": 0, "auth_error": 0}
+    results = {
+        "success": 0, "duplicate": 0, "invalid_code": 0, 
+        "rate_limited_max": 0, "error_max": 0, "request_error_max": 0, 
+        "worker_error": 0, "unexpected_error_max": 0, "auth_error": 0
+    }
     processed_codes = 0
+    shutdown_flag = False
     
     try:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Generate initial batch
             invite_codes = []
             for _ in range(max_workers * 2):
-                code = generate_invite_code()
-                with lock:
-                    while code in used_codes or code in invalid_codes:
-                        code = generate_invite_code()
+                code = generate_unique_code(used_codes, invalid_codes, lock)
                 invite_codes.append(code)
             
             print(f"Generated initial batch of {len(invite_codes)} invite codes")
             future_to_code = {executor.submit(worker, code, auth_token, config, used_codes, lock, max_retries, retry_delay): code for code in invite_codes}
             
-            while future_to_code:
+            while future_to_code and not shutdown_flag:
                 for future in as_completed(future_to_code):
+                    if shutdown_flag:
+                        break
+                        
                     try:
                         result, success, code = future.result()
                         del future_to_code[future]
                         processed_codes += 1
-                        results[result] = results.get(result, 0) + 1
                         
+                        # Handle auth error - stop everything
                         if result == "auth_error":
                             safe_print("FATAL: Authentication failed. Stopping all threads. Please update your auth token.")
+                            results["auth_error"] += 1
+                            shutdown_flag = True
                             for f in future_to_code:
                                 f.cancel()
                             break
                         
+                        # REFACTORED: Track all results in one place
+                        results[result] += 1
+                        
                         if success:
-                            results["success"] += 1
                             current_success = results["success"]
                             if current_success % 10 == 0 and current_success != last_success_count:
-                                safe_print(f"[PROGRESS] Successfully submitted {current_success} invite codes")
+                                color_print(f"[PROGRESS] Successfully submitted {current_success} invite codes!", GREEN)
                                 last_success_count = current_success
-                        elif result == "invalid_code":
-                            with lock:
-                                invalid_codes.add(code)
-                            safe_print(f"[INVALID] Code {code} is invalid, recorded")
-                            results["invalid_code"] += 1
-                            new_code = generate_invite_code()
-                            with lock:
-                                while new_code in used_codes or new_code in invalid_codes:
-                                    new_code = generate_invite_code()
-                            safe_print(f"[REPLACE] Replacing invalid code {code} with new code {new_code}")
-                            new_future = executor.submit(worker, new_code, auth_token, config, used_codes, lock, max_retries, retry_delay)
-                            future_to_code[new_future] = new_code
-                        elif result in ["rate_limited_max", "error_max", "request_error_max", "worker_error", "unexpected_error_max", "encoding_error_max"]:
-                            safe_print(f"[GIVE_UP] Code {code} reached max retries, giving up")
-                            with lock:
-                                used_codes.discard(code)
-                            results[result] += 1
-                            new_code = generate_invite_code()
-                            with lock:
-                                while new_code in used_codes or new_code in invalid_codes:
-                                    new_code = generate_invite_code()
-                            safe_print(f"[REPLACE] Replacing abandoned code {code} with new code {new_code}")
-                            new_future = executor.submit(worker, new_code, auth_token, config, used_codes, lock, max_retries, retry_delay)
-                            future_to_code[new_future] = new_code
                         else:
-                            results["failed"] += 1
+                            # Handle all non-success cases that need a replacement code
+                            if result == "invalid_code":
+                                with lock:
+                                    invalid_codes.add(code)
+                                safe_print(f"[INVALID] Code {code} is invalid, recorded.")
+                            elif result in ["rate_limited_max", "error_max", "request_error_max", "worker_error", "unexpected_error_max"]:
+                                safe_print(f"[GIVE_UP] Code {code} failed due to '{result}', giving up.")
+                            
+                            # If the task needs a replacement, generate and submit a new one
+                            if result != "duplicate":  # Duplicates don't need replacement
+                                new_code = generate_unique_code(used_codes, invalid_codes, lock)
+                                safe_print(f"[REPLACE] Replacing code {code} with new code {new_code}")
+                                new_future = executor.submit(worker, new_code, auth_token, config, used_codes, lock, max_retries, retry_delay)
+                                future_to_code[new_future] = new_code
                         
-                        if delay > 0:
+                        if delay > 0 and not shutdown_flag:
                             time.sleep(delay)
                     
                     except CancelledError:
@@ -392,18 +414,28 @@ def submit_invite_codes(config: dict) -> None:
                             safe_print(error_message)
                         except Exception as print_error:
                             print(f"A thread execution error occurred ({error_type}). Could not print details due to a printing error.")
-                        results["error"] += 1
                         processed_codes += 1
     
     except KeyboardInterrupt:
         print("\n\nInterrupt signal detected, stopping...")
+        # FIXED: Save all in-memory codes to prevent loss
+        print("Saving current in-memory used codes before exiting...")
+        with lock:
+            try:
+                with open(used_codes_file, "w", encoding="utf-8") as f:
+                    for code in sorted(list(used_codes)):
+                        f.write(f"{code}\n")
+                print(f"Successfully saved {len(used_codes)} codes to {used_codes_file}.")
+            except Exception as e:
+                print(f"Error saving used codes on exit: {e}")
     
     end_time = time.time()
     print("\n====== Program Stopped ======")
     print(f"Total runtime: {end_time - start_time:.2f} seconds")
-    print(f"Success: {results['success']}, Failed: {results['failed']}, Duplicate: {results['duplicate']}")
-    print(f"Invalid codes: {results['invalid_code']}, Rate limited: {results['rate_limited']}, Errors: {results['error']}")
-    print(f"Request errors: {results['request_error']}, Worker errors: {results['worker_error']}, Auth errors: {results['auth_error']}")
+    print(f"Success: {results['success']}, Duplicate: {results['duplicate']}")
+    print(f"Invalid codes: {results['invalid_code']}, Auth errors: {results['auth_error']}")
+    print(f"Rate limited (max): {results['rate_limited_max']}, Errors (max): {results['error_max']}")
+    print(f"Request errors (max): {results['request_error_max']}, Worker errors: {results['worker_error']}")
     print(f"Total processed codes: {processed_codes}")
     print(f"Success codes saved to: {success_file}, Used codes saved to: {used_codes_file}, Invalid codes saved to: {invalid_codes_file}")
 
