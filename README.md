@@ -6,6 +6,10 @@
 
 ---
 
+![sora](https://github.com/user-attachments/assets/7f7a36d8-532b-45b1-96ec-5f3eef44af30)
+
+---
+
 ### Recommended Setup
 
 For the best results, it is highly recommended to use the **Mozilla Firefox** browser and connect to a **VPN server located in the USA**. This helps to match the request headers that are most commonly accepted by the API.
@@ -22,6 +26,8 @@ For the best results, it is highly recommended to use the **Mozilla Firefox** br
     *   If the script is **rate-limited** (429 Too Many Requests), it waits and retries.
     *   If your **authentication fails** (401 Unauthorized), the script will stop and tell you to update your token.
 4.  **Smart Blacklist & Cache**: The script is intelligent. It uses `used_codes.txt` and `invalid_codes.txt` as a "blacklist cache". Every time it starts, it loads these files to ensure it **never tries the same code twice**, whether it was successful, invalid, or simply attempted before. This makes the script highly efficient, especially when you stop and restart it.
+
+> **💡 Head Start Included!** This package includes `invalid_codes.txt` pre-populated with **10,000 known invalid codes** to save you time and reduce unnecessary API requests. The script will automatically skip these codes when generating new ones.
 
 ---
 
@@ -91,4 +97,4 @@ The script will start running and show you its progress. Press `Ctrl+C` to stop 
 -   `run.bat`: **(Run this to start)** Activates the environment and starts the script.
 -   `success.txt`: Automatically created. Contains all successfully submitted codes.
 -   `used_codes.txt`: Automatically created. Contains all codes the script has tried.
--   `invalid_codes.txt`: Automatically created. A "blacklist" of codes that are known to be invalid.
+-   `invalid_codes.txt`: **Pre-loaded with 10,000 invalid codes!** A "blacklist" of codes that are known to be invalid. The script automatically skips these when generating new codes.
