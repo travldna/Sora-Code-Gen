@@ -1,4 +1,4 @@
-# Sora Invite Code Submitter
+# Sora Code Gen
 
 > **⚠️ Important Notice: Use at Your Own Risk**
 >
