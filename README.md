@@ -96,5 +96,4 @@ The script will start running and show you its progress. Press `Ctrl+C` to stop 
 -   `install.bat`: **(Run this first)** Sets up the Python virtual environment.
 -   `run.bat`: **(Run this to start)** Activates the environment and starts the script.
 -   `success.txt`: Automatically created. Contains all successfully submitted codes.
--   `used_codes.txt`: Automatically created. Contains all codes the script has tried.
 -   `invalid_codes.txt`: **Pre-loaded with 10,000 invalid codes!** A "blacklist" of codes that are known to be invalid. The script automatically skips these when generating new codes.
