@@ -193,11 +193,19 @@ def submit_invite_code(invite_code: str, auth_token: str, config: dict, max_retr
     json_payload_bytes = json.dumps(data).encode('utf-8')
 
     for attempt in range(max_retries):
+        # --- DEBUGGING LINE 1 ---
+        safe_print(f"[DEBUG] Attempting to submit code {invite_code} (attempt {attempt + 1}/{max_retries})")
         try:
             session = requests.Session()
             session.mount('https://', UTF8HTTPAdapter())
             response = session.post(url, headers=headers, data=json_payload_bytes, timeout=None)
             
+            # --- DEBUGGING LINE 2 ---
+            safe_print(f"[DEBUG] Server responded with status code: {response.status_code}")
+            # --- DEBUGGING LINE 3 (for unexpected errors) ---
+            if response.status_code not in [200, 401, 403, 429]:
+                 safe_print(f"[DEBUG] Unexpected response text: {response.text[:200]}")
+
             if response.status_code == 200:
                 safe_print(f"[SUCCESS] Code {invite_code} submitted successfully!")
                 return ("success", True, invite_code)
